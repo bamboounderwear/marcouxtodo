@@ -17,12 +17,46 @@ function App() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Initialize Netlify Identity
-    const script = document.createElement('script');
-    script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-    script.async = true;
-    script.onload = initializeIdentity;
-    document.head.appendChild(script);
+    const initializeIdentity = () => {
+      const { netlifyIdentity } = window;
+      
+      if (!netlifyIdentity) {
+        setTimeout(initializeIdentity, 100);
+        return;
+      }
+
+      netlifyIdentity.on('init', (user: any) => {
+        console.log('Identity initialized', { user });
+        setUser(user);
+        setIdentityReady(true);
+        handleAuthFlow();
+      });
+
+      netlifyIdentity.on('login', (user: any) => {
+        console.log('Login event', { user });
+        setUser(user);
+        setAuthError(null);
+        fetchBoards();
+      });
+
+      netlifyIdentity.on('logout', () => {
+        setUser(null);
+        setBoards([]);
+      });
+
+      netlifyIdentity.on('error', (err: Error) => {
+        console.error('Identity error:', err);
+        setAuthError(err.message);
+      });
+
+      // Initialize with site URL
+      netlifyIdentity.init({
+        APIUrl: 'https://' + window.location.hostname + '/.netlify/identity'
+      });
+    };
+
+    // Start initialization
+    initializeIdentity();
 
     return () => {
       if (window.netlifyIdentity) {
@@ -34,96 +68,39 @@ function App() {
     };
   }, []);
 
-  const initializeIdentity = () => {
-    const { netlifyIdentity } = window;
-    
-    if (!netlifyIdentity) {
-      setTimeout(initializeIdentity, 100);
-      return;
-    }
-
-    netlifyIdentity.on('init', (user: any) => {
-      setUser(user);
-      setIdentityReady(true);
-      handleAuthFlow();
-    });
-
-    netlifyIdentity.on('login', (user: any) => {
-      setUser(user);
-      setAuthError(null);
-      fetchBoards();
-    });
-
-    netlifyIdentity.on('logout', () => {
-      setUser(null);
-      setBoards([]);
-    });
-
-    netlifyIdentity.on('error', (err: Error) => {
-      console.error('Identity error:', err);
-      setAuthError(err.message);
-      // Retry authentication flow after error
-      setTimeout(handleAuthFlow, 1000);
-    });
-
-    netlifyIdentity.init({
-      APIUrl: 'https://' + window.location.hostname + '/.netlify/identity',
-      locale: 'en',
-    });
-  };
-
   const handleAuthFlow = () => {
-    // Check URL hash for tokens
-    const hash = window.location.hash.substring(1);
-    const hashParams = new URLSearchParams(hash);
-    
-    // Check URL query params for tokens
-    const queryParams = new URLSearchParams(window.location.search);
-    
-    // Combine hash and query parameters
-    const token = queryParams.get('token') || hashParams.get('token');
-    const confirmationToken = queryParams.get('confirmation_token') || hashParams.get('confirmation_token');
-    const recoveryToken = queryParams.get('recovery_token') || hashParams.get('recovery_token');
-    const inviteToken = queryParams.get('invite_token') || hashParams.get('invite_token');
-    const error = queryParams.get('error') || hashParams.get('error');
-    const error_description = queryParams.get('error_description') || hashParams.get('error_description');
+    const { netlifyIdentity } = window;
+    if (!netlifyIdentity) return;
 
-    if (error || error_description) {
-      setAuthError(error_description || error || 'Authentication error occurred');
+    // Get the full hash including the #
+    const fullHash = window.location.hash;
+    
+    // Check if we have an invite token in the hash
+    if (fullHash.includes('invite_token=')) {
+      const inviteToken = fullHash.split('invite_token=')[1];
+      console.log('Found invite token:', inviteToken);
+      
+      // Force the widget to show
+      netlifyIdentity.store.set('usedInviteToken', inviteToken);
+      netlifyIdentity.store.set('loginModal.isOpen', true);
+      
+      // Ensure the signup modal is shown
+      setTimeout(() => {
+        netlifyIdentity.open('signup');
+        
+        // Force modal visibility through DOM
+        const widget = document.querySelector('.netlify-identity-widget');
+        if (widget) {
+          widget.setAttribute('style', 'display: flex !important; visibility: visible !important; opacity: 1 !important;');
+        }
+      }, 100);
+      
       return;
     }
 
-    if (token || confirmationToken || recoveryToken || inviteToken) {
-      console.log('Processing token:', { token, confirmationToken, recoveryToken, inviteToken });
-      
-      // Clear any existing widget state
-      window.netlifyIdentity.close();
-      
-      // Force the widget to process the token
-      if (inviteToken) {
-        window.netlifyIdentity.store.set('usedInviteToken', inviteToken);
-        window.netlifyIdentity.store.set('loginModal.isOpen', true);
-        setTimeout(() => {
-          window.netlifyIdentity.open('signup');
-          // Additional force to ensure the signup form is shown
-          const modal = document.querySelector('.netlify-identity-widget');
-          if (modal) {
-            modal.setAttribute('data-screen', 'signup');
-          }
-        }, 100);
-      } else if (recoveryToken) {
-        setTimeout(() => window.netlifyIdentity.open('recovery'), 100);
-      } else if (confirmationToken) {
-        setTimeout(() => window.netlifyIdentity.open('signup'), 100);
-      } else {
-        setTimeout(() => window.netlifyIdentity.open('login'), 100);
-      }
-
-      // Clean up URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (!user) {
-      // If no user and no special tokens, open login
-      setTimeout(() => window.netlifyIdentity.open('login'), 500);
+    // Handle other auth flows
+    if (!user) {
+      setTimeout(() => netlifyIdentity.open('login'), 500);
     }
   };
 
