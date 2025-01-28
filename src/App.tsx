@@ -1,15 +1,49 @@
 import React, { useEffect, useState } from 'react';
 import { TaskBoard } from './components/TaskBoard';
 import { Board, Task } from './types';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, LogOut } from 'lucide-react';
+
+declare global {
+  interface Window {
+    netlifyIdentity: any;
+  }
+}
 
 function App() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    fetchBoards();
+    // Initialize Netlify Identity
+    const script = document.createElement('script');
+    script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+    script.onload = () => {
+      const { netlifyIdentity } = window;
+      netlifyIdentity.on('init', (user: any) => setUser(user));
+      netlifyIdentity.on('login', (user: any) => {
+        setUser(user);
+        netlifyIdentity.close();
+        fetchBoards();
+      });
+      netlifyIdentity.on('logout', () => {
+        setUser(null);
+        setBoards([]);
+      });
+      netlifyIdentity.init();
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      script.remove();
+    };
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchBoards();
+    }
+  }, [user]);
 
   const fetchBoards = async () => {
     try {
@@ -87,6 +121,33 @@ function App() {
     }
   };
 
+  const handleLogin = () => {
+    window.netlifyIdentity.open();
+  };
+
+  const handleLogout = () => {
+    window.netlifyIdentity.logout();
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="mb-8 flex items-center gap-3">
+          <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center">
+            <Briefcase className="w-6 h-6 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Marketing Tasks</h1>
+        </div>
+        <button
+          onClick={handleLogin}
+          className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+        >
+          Sign In to Continue
+        </button>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -97,11 +158,25 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-gray-900 text-white">
+      <header className="bg-gray-900 text-white sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-6 h-6" />
-            <h1 className="text-xl font-semibold">Marketing Agency Tasks</h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
+                <Briefcase className="w-5 h-5 text-gray-900" />
+              </div>
+              <h1 className="text-xl font-semibold">Marketing Tasks</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-300">{user.email}</span>
+              <button
+                onClick={handleLogout}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-2 text-sm"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>

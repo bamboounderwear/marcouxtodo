@@ -126,9 +126,9 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
   return (
     <div className="flex-1 overflow-x-auto">
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 p-4 min-h-[calc(100vh-4rem)]">
+        <div className="flex gap-4 p-4 min-h-[calc(100vh-4rem)] snap-x snap-mandatory overflow-x-auto">
           {boards.map((board) => (
-            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg">
+            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg snap-center">
               <div className="p-3 flex justify-between items-center">
                 <h3 className="font-semibold text-gray-700">{board.title}</h3>
                 <div className="relative">
