@@ -51,6 +51,16 @@ function App() {
 
   const getAuthHeaders = () => {
     const token = user?.token?.access_token;
+    if (!token) {
+      // Refresh the token if it's not available
+      const currentUser = window.netlifyIdentity.currentUser();
+      if (currentUser) {
+        return {
+          'Authorization': `Bearer ${currentUser.token.access_token}`,
+          'Content-Type': 'application/json'
+        };
+      }
+    }
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
