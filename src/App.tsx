@@ -1,76 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { TaskBoard } from './components/TaskBoard';
 import { Board, Task } from './types';
-import { Briefcase, LogOut } from 'lucide-react';
-import { PasswordSetup } from './components/PasswordSetup';
-
-declare global {
-  interface Window {
-    netlifyIdentity: any;
-  }
-}
+import { Briefcase } from 'lucide-react';
 
 function App() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const { netlifyIdentity } = window;
-    
-    if (!netlifyIdentity) {
-      console.error('Netlify Identity not loaded');
-      return;
-    }
-
-    // Check for invite token
-    const hash = window.location.hash;
-    if (hash.includes('invite_token=')) {
-      const token = hash.split('invite_token=')[1];
-      setInviteToken(token);
-      window.history.replaceState(null, '', window.location.pathname);
-    }
-
-    // Set initial user state
-    const currentUser = netlifyIdentity.currentUser();
-    setUser(currentUser);
-    if (currentUser) {
-      fetchBoards();
-    } else {
-      setLoading(false);
-    }
-
-    netlifyIdentity.on('login', (user: any) => {
-      setUser(user);
-      setAuthError(null);
-      setInviteToken(null);
-      fetchBoards();
-    });
-
-    netlifyIdentity.on('logout', () => {
-      setUser(null);
-      setBoards([]);
-      setLoading(false);
-    });
-
-    netlifyIdentity.on('error', (err: Error) => {
-      console.error('Identity error:', err);
-      setAuthError(err.message);
-      setLoading(false);
-    });
-
-    // If there's an invite token, open the widget
-    if (hash.includes('invite_token=') || hash.includes('recovery_token=')) {
-      netlifyIdentity.open('signup');
-    }
-
-    return () => {
-      netlifyIdentity.off('login');
-      netlifyIdentity.off('logout');
-      netlifyIdentity.off('error');
-    };
+    fetchBoards();
   }, []);
 
   const fetchBoards = async () => {
@@ -149,41 +87,6 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.logout();
-    }
-  };
-
-  // Show password setup if we have an invite token
-  if (inviteToken) {
-    return <PasswordSetup token={inviteToken} onError={setAuthError} />;
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="w-12 h-12 bg-gray-900 rounded-lg flex items-center justify-center">
-            <Briefcase className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Marketing Tasks</h1>
-        </div>
-        {authError && (
-          <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-lg">
-            {authError}
-          </div>
-        )}
-        <button
-          onClick={() => window.netlifyIdentity?.open('login')}
-          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          Sign In
-        </button>
-      </div>
-    );
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -194,25 +97,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-gray-900 text-white sticky top-0 z-40">
+      <header className="bg-gray-900 text-white">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <Briefcase className="w-5 h-5 text-gray-900" />
-              </div>
-              <h1 className="text-xl font-semibold">Marketing Tasks</h1>
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-300">{user.email}</span>
-              <button
-                onClick={handleLogout}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors flex items-center gap-2 text-sm"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
-            </div>
+          <div className="flex items-center gap-2">
+            <Briefcase className="w-6 h-6" />
+            <h1 className="text-xl font-semibold">Marketing Agency Tasks</h1>
           </div>
         </div>
       </header>

@@ -2,8 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  input[type="password"] {
-    @apply px-3 py-2 border border-gray-300 focus:outline-none;
+/* Smooth scrolling for desktop */
+@media (min-width: 768px) {
+  .snap-x {
+    scroll-behavior: smooth;
   }
+}
+
+/* Hide scrollbar but keep functionality */
+.overflow-x-auto {
+  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+}
+
+.overflow-x-auto::-webkit-scrollbar {
+  display: none;  /* WebKit */
 }
