@@ -1,13 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { TaskBoard } from './components/TaskBoard';
 import { Board, Task } from './types';
+import { LogOut } from 'lucide-react';
 
 function App() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    fetchBoards();
+    // Check if user is already logged in
+    const currentUser = window.netlifyIdentity.currentUser();
+    setUser(currentUser);
+
+    // Listen for login/logout events
+    window.netlifyIdentity.on('login', (user: any) => {
+      setUser(user);
+      window.netlifyIdentity.close();
+      fetchBoards();
+    });
+
+    window.netlifyIdentity.on('logout', () => {
+      setUser(null);
+      setBoards([]);
+    });
+
+    if (currentUser) {
+      fetchBoards();
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      window.netlifyIdentity.off('login');
+      window.netlifyIdentity.off('logout');
+    };
   }, []);
 
   const fetchBoards = async () => {
@@ -94,12 +121,38 @@ function App() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
+        <img src="/logo.png" alt="Logo" className="h-12 w-auto mb-8" />
+        <button
+          onClick={() => window.netlifyIdentity.open('login')}
+          className="bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-100"
+        >
+          Sign In
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="bg-gray-900 border-b border-gray-800">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-400">{user.email}</span>
+              <button
+                onClick={() => window.netlifyIdentity.logout()}
+                className="p-2 hover:bg-gray-800 rounded-full"
+                title="Sign Out"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>

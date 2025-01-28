@@ -12,3 +12,15 @@ export interface Board {
   title: string;
   tasks: Task[];
 }
+
+declare global {
+  interface Window {
+    netlifyIdentity: {
+      on: (event: string, callback: Function) => void;
+      open: (command?: string) => void;
+      close: () => void;
+      currentUser: () => any;
+      logout: () => void;
+    };
+  }
+}
