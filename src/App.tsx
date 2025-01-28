@@ -1,122 +1,293 @@
-import React, { useEffect, useState } from 'react';
-import { TaskBoard } from './components/TaskBoard';
-import { Board, Task } from './types';
-import { Briefcase } from 'lucide-react';
+import React, { useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { Plus, MoreVertical, Calendar, Flag, Trash2, Check, X } from 'lucide-react';
+import type { Board, Task } from '../types';
 
-function App() {
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [loading, setLoading] = useState(true);
+interface TaskBoardProps {
+  boards: Board[];
+  onBoardUpdate: (board: Board) => void;
+  onAddBoard: (title: string) => void;
+  onAddTask: (boardId: string, title: string) => void;
+  onDeleteBoard: (boardId: string) => void;
+}
 
-  useEffect(() => {
-    fetchBoards();
-  }, []);
+export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDeleteBoard }: TaskBoardProps) {
+  const [newBoardTitle, setNewBoardTitle] = useState('');
+  const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
+  const [showNewTaskForm, setShowNewTaskForm] = useState<Record<string, boolean>>({});
+  const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
+  const [showDeleteMenu, setShowDeleteMenu] = useState<string | null>(null);
 
-  const fetchBoards = async () => {
-    try {
-      const response = await fetch('/.netlify/functions/tasks');
-      const data = await response.json();
-      setBoards(data);
-    } catch (error) {
-      console.error('Error fetching boards:', error);
-    } finally {
-      setLoading(false);
+  const handleNewBoardSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newBoardTitle.trim()) {
+      onAddBoard(newBoardTitle.trim());
+      setNewBoardTitle('');
     }
   };
 
-  const handleBoardUpdate = async (updatedBoard: Board) => {
-    try {
-      await fetch('/.netlify/functions/tasks', {
-        method: 'PUT',
-        body: JSON.stringify(updatedBoard),
-      });
-      
-      setBoards(boards.map(board => 
-        board.id === updatedBoard.id ? updatedBoard : board
-      ));
-    } catch (error) {
-      console.error('Error updating board:', error);
+  const handleNewTaskSubmit = (e: React.FormEvent, boardId: string) => {
+    e.preventDefault();
+    const title = newTaskTitles[boardId]?.trim();
+    if (title) {
+      onAddTask(boardId, title);
+      setNewTaskTitles(prev => ({ ...prev, [boardId]: '' }));
+      setShowNewTaskForm(prev => ({ ...prev, [boardId]: false }));
     }
   };
 
-  const handleAddBoard = async (title: string) => {
-    const newBoard: Board = {
-      id: `board-${Date.now()}`,
-      title,
-      tasks: []
-    };
-
-    try {
-      const response = await fetch('/.netlify/functions/tasks', {
-        method: 'PUT',
-        body: JSON.stringify(newBoard),
-      });
-      const data = await response.json();
-      setBoards([...boards, { ...newBoard, id: data.id }]);
-    } catch (error) {
-      console.error('Error adding board:', error);
-    }
-  };
-
-  const handleAddTask = async (boardId: string, title: string) => {
+  const handleDeleteTask = (boardId: string, taskId: string) => {
     const board = boards.find(b => b.id === boardId);
     if (!board) return;
 
-    const newTask: Task = {
-      id: `task-${Date.now()}`,
-      title,
-      priority: 'medium',
-      status: 'todo'
+    const updatedBoard = {
+      ...board,
+      tasks: board.tasks.filter(task => task.id !== taskId)
     };
+
+    onBoardUpdate(updatedBoard);
+  };
+
+  const handleToggleTaskStatus = (boardId: string, taskId: string) => {
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return;
 
     const updatedBoard = {
       ...board,
-      tasks: [...board.tasks, newTask]
+      tasks: board.tasks.map(task => 
+        task.id === taskId 
+          ? { ...task, status: task.status === 'done' ? 'todo' : 'done' }
+          : task
+      )
     };
 
-    await handleBoardUpdate(updatedBoard);
+    onBoardUpdate(updatedBoard);
   };
 
-  const handleDeleteBoard = async (boardId: string) => {
-    try {
-      await fetch(`/.netlify/functions/tasks?id=${boardId}`, {
-        method: 'DELETE',
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const { source, destination } = result;
+    const sourceBoard = boards.find(b => b.id === source.droppableId);
+    const destBoard = boards.find(b => b.id === destination.droppableId);
+
+    if (!sourceBoard || !destBoard) return;
+
+    if (source.droppableId === destination.droppableId) {
+      // Reorder within same board
+      const newTasks = Array.from(sourceBoard.tasks);
+      const [removed] = newTasks.splice(source.index, 1);
+      newTasks.splice(destination.index, 0, removed);
+
+      onBoardUpdate({
+        ...sourceBoard,
+        tasks: newTasks
       });
-      setBoards(boards.filter(board => board.id !== boardId));
-    } catch (error) {
-      console.error('Error deleting board:', error);
+    } else {
+      // Move between boards
+      const sourceItems = Array.from(sourceBoard.tasks);
+      const destItems = Array.from(destBoard.tasks);
+      const [removed] = sourceItems.splice(source.index, 1);
+      destItems.splice(destination.index, 0, removed);
+
+      onBoardUpdate({
+        ...sourceBoard,
+        tasks: sourceItems
+      });
+      onBoardUpdate({
+        ...destBoard,
+        tasks: destItems
+      });
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-white">
-      <header className="bg-gray-900 text-white">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-6 h-6" />
-            <h1 className="text-xl font-semibold">Marketing Agency Tasks</h1>
+    <div className="flex-1 overflow-x-auto">
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="flex gap-4 p-4 min-h-[calc(100vh-4rem)]">
+          {boards.map((board) => (
+            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg">
+              <div className="p-3 flex justify-between items-center">
+                <h3 className="font-semibold text-gray-700">{board.title}</h3>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowDeleteMenu(showDeleteMenu === board.id ? null : board.id)}
+                    className="p-1 hover:bg-gray-200 rounded"
+                  >
+                    <MoreVertical className="w-5 h-5 text-gray-500" />
+                  </button>
+                  
+                  {showDeleteMenu === board.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                      {boardToDelete === board.id ? (
+                        <div className="p-3">
+                          <p className="text-sm text-gray-600 mb-2">Delete this board?</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                onDeleteBoard(board.id);
+                                setBoardToDelete(null);
+                                setShowDeleteMenu(null);
+                              }}
+                              className="flex-1 bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => {
+                                setBoardToDelete(null);
+                                setShowDeleteMenu(null);
+                              }}
+                              className="flex-1 bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setBoardToDelete(board.id)}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-lg"
+                        >
+                          Delete board
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <Droppable droppableId={board.id}>
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="p-2 space-y-2"
+                  >
+                    {board.tasks.map((task, index) => (
+                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            className={`bg-white p-3 rounded shadow-sm space-y-2 ${
+                              task.status === 'done' ? 'opacity-75' : ''
+                            }`}
+                          >
+                            <div className="flex justify-between items-start gap-2">
+                              <div className={`text-sm font-medium ${
+                                task.status === 'done' ? 'line-through text-gray-500' : ''
+                              }`}>
+                                {task.title}
+                              </div>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleToggleTaskStatus(board.id, task.id)}
+                                  className={`p-1 rounded hover:bg-gray-100 ${
+                                    task.status === 'done' ? 'text-green-500' : 'text-gray-400'
+                                  }`}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(board.id, task.id)}
+                                  className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+                            {task.description && (
+                              <p className="text-sm text-gray-600">{task.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              {task.dueDate && (
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {new Date(task.dueDate).toLocaleDateString()}
+                                </div>
+                              )}
+                              <div className={`flex items-center gap-1 ${
+                                task.priority === 'high' ? 'text-red-500' :
+                                task.priority === 'medium' ? 'text-yellow-500' :
+                                'text-green-500'
+                              }`}>
+                                <Flag className="w-3 h-3" />
+                                {task.priority}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                    
+                    {showNewTaskForm[board.id] ? (
+                      <form onSubmit={(e) => handleNewTaskSubmit(e, board.id)} className="space-y-2">
+                        <input
+                          type="text"
+                          value={newTaskTitles[board.id] || ''}
+                          onChange={(e) => setNewTaskTitles(prev => ({ ...prev, [board.id]: e.target.value }))}
+                          placeholder="Task title"
+                          className="w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            className="flex-1 bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                          >
+                            Add
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNewTaskForm(prev => ({ ...prev, [board.id]: false }));
+                              setNewTaskTitles(prev => ({ ...prev, [board.id]: '' }));
+                            }}
+                            className="flex-1 bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => setShowNewTaskForm(prev => ({ ...prev, [board.id]: true }))}
+                        className="w-full p-2 text-sm text-gray-600 hover:bg-gray-200 rounded flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add task
+                      </button>
+                    )}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+          
+          <div className="flex-shrink-0 w-80">
+            <form onSubmit={handleNewBoardSubmit} className="bg-gray-100 rounded-lg p-3 space-y-2">
+              <input
+                type="text"
+                value={newBoardTitle}
+                onChange={(e) => setNewBoardTitle(e.target.value)}
+                placeholder="Enter board title"
+                className="w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                className="w-full bg-blue-500 text-white p-2 rounded text-sm hover:bg-blue-600 flex items-center justify-center gap-2"
+                disabled={!newBoardTitle.trim()}
+              >
+                <Plus className="w-4 h-4" />
+                Add new board
+              </button>
+            </form>
           </div>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-6">
-        <TaskBoard
-          boards={boards}
-          onBoardUpdate={handleBoardUpdate}
-          onAddBoard={handleAddBoard}
-          onAddTask={handleAddTask}
-          onDeleteBoard={handleDeleteBoard}
-        />
-      </main>
+      </DragDropContext>
     </div>
   );
 }
-
-export default App;
