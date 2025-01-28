@@ -20,17 +20,38 @@ function App() {
     script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
     script.onload = () => {
       const { netlifyIdentity } = window;
-      netlifyIdentity.on('init', (user: any) => setUser(user));
+      
+      // Handle the invite token if present
+      const hash = document.location.hash;
+      if (hash && hash.includes('invite_token')) {
+        const token = hash.match(/invite_token=([^&]+)/)?.[1];
+        if (token) {
+          netlifyIdentity.open('signup');
+        }
+      }
+
+      netlifyIdentity.on('init', (user: any) => {
+        setUser(user);
+        if (hash && hash.includes('confirmation_token')) {
+          netlifyIdentity.open('signup');
+        }
+      });
+
       netlifyIdentity.on('login', (user: any) => {
         setUser(user);
         netlifyIdentity.close();
         fetchBoards();
       });
+
       netlifyIdentity.on('logout', () => {
         setUser(null);
         setBoards([]);
       });
-      netlifyIdentity.init();
+
+      netlifyIdentity.init({
+        locale: 'en', // defaults to 'en'
+        enableSignup: true,
+      });
     };
     document.head.appendChild(script);
 
