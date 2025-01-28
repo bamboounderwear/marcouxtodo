@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { TaskBoard } from './components/TaskBoard';
 import { Board, Task } from './types';
 import { Briefcase, LogOut } from 'lucide-react';
+import { PasswordSetup } from './components/PasswordSetup';
 
 declare global {
   interface Window {
@@ -15,6 +16,7 @@ function App() {
   const [user, setUser] = useState<any>(null);
   const [identityReady, setIdentityReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   useEffect(() => {
     const initializeIdentity = () => {
@@ -29,13 +31,14 @@ function App() {
         console.log('Identity initialized', { user });
         setUser(user);
         setIdentityReady(true);
-        handleAuthFlow();
+        checkForInviteToken();
       });
 
       netlifyIdentity.on('login', (user: any) => {
         console.log('Login event', { user });
         setUser(user);
         setAuthError(null);
+        setInviteToken(null);
         fetchBoards();
       });
 
@@ -49,13 +52,9 @@ function App() {
         setAuthError(err.message);
       });
 
-      // Initialize with site URL
-      netlifyIdentity.init({
-        APIUrl: 'https://' + window.location.hostname + '/.netlify/identity'
-      });
+      netlifyIdentity.init();
     };
 
-    // Start initialization
     initializeIdentity();
 
     return () => {
@@ -68,47 +67,21 @@ function App() {
     };
   }, []);
 
-  const handleAuthFlow = () => {
-    const { netlifyIdentity } = window;
-    if (!netlifyIdentity) return;
-
-    // Get the full hash including the #
-    const fullHash = window.location.hash;
-    
-    // Check if we have an invite token in the hash
-    if (fullHash.includes('invite_token=')) {
-      const inviteToken = fullHash.split('invite_token=')[1];
-      console.log('Found invite token:', inviteToken);
-      
-      // Force the widget to show
-      netlifyIdentity.store.set('usedInviteToken', inviteToken);
-      netlifyIdentity.store.set('loginModal.isOpen', true);
-      
-      // Ensure the signup modal is shown
-      setTimeout(() => {
-        netlifyIdentity.open('signup');
-        
-        // Force modal visibility through DOM
-        const widget = document.querySelector('.netlify-identity-widget');
-        if (widget) {
-          widget.setAttribute('style', 'display: flex !important; visibility: visible !important; opacity: 1 !important;');
-        }
-      }, 100);
-      
-      return;
-    }
-
-    // Handle other auth flows
-    if (!user) {
-      setTimeout(() => netlifyIdentity.open('login'), 500);
+  const checkForInviteToken = () => {
+    const hash = window.location.hash;
+    if (hash.includes('invite_token=')) {
+      const token = hash.split('invite_token=')[1];
+      setInviteToken(token);
+      // Clear the URL without triggering a reload
+      window.history.replaceState(null, '', window.location.pathname);
     }
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && !inviteToken) {
       fetchBoards();
     }
-  }, [user]);
+  }, [user, inviteToken]);
 
   const fetchBoards = async () => {
     try {
@@ -200,6 +173,11 @@ function App() {
     );
   }
 
+  // Show password setup if we have an invite token
+  if (inviteToken) {
+    return <PasswordSetup token={inviteToken} onError={setAuthError} />;
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -214,9 +192,12 @@ function App() {
             {authError}
           </div>
         )}
-        <div className="animate-pulse text-sm text-gray-500">
-          Opening authentication...
-        </div>
+        <button
+          onClick={() => window.netlifyIdentity?.open('login')}
+          className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
+        >
+          Sign In
+        </button>
       </div>
     );
   }
@@ -267,4 +248,4 @@ function App() {
   );
 }
 
-export default App;
+export default App

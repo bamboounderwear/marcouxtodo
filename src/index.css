@@ -2,49 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Force Netlify Identity Widget visibility */
-.netlify-identity-widget {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  z-index: 9999 !important;
-  pointer-events: auto !important;
-}
-
-.netlify-identity-widget iframe {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-
-.netlify-identity-widget-container {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  position: fixed !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
-  z-index: 10000 !important;
-  pointer-events: auto !important;
-}
-
-.netlify-identity-widget-overlay {
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-  background: rgba(14, 30, 37, 0.8) !important;
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  z-index: 9998 !important;
-  pointer-events: auto !important;
+@layer base {
+  input[type="password"] {
+    @apply px-3 py-2 border border-gray-300 focus:outline-none;
+  }
 }
