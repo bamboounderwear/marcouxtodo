@@ -100,7 +100,6 @@ function App() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
-            <h1 className="text-xl font-semibold">TaskFlow</h1>
           </div>
         </div>
       </header>
