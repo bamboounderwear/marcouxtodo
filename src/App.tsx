@@ -14,16 +14,11 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [identityReady, setIdentityReady] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     // Initialize Netlify Identity
-    const existingScript = document.getElementById('netlify-identity-widget');
-    if (existingScript) {
-      document.head.removeChild(existingScript);
-    }
-
     const script = document.createElement('script');
-    script.id = 'netlify-identity-widget';
     script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
     script.async = true;
     script.onload = initializeIdentity;
@@ -34,6 +29,7 @@ function App() {
         window.netlifyIdentity.off('init');
         window.netlifyIdentity.off('login');
         window.netlifyIdentity.off('logout');
+        window.netlifyIdentity.off('error');
       }
     };
   }, []);
@@ -42,19 +38,19 @@ function App() {
     const { netlifyIdentity } = window;
     
     if (!netlifyIdentity) {
-      setTimeout(initializeIdentity, 100); // Retry if not ready
+      setTimeout(initializeIdentity, 100);
       return;
     }
 
     netlifyIdentity.on('init', (user: any) => {
       setUser(user);
       setIdentityReady(true);
-      checkForInviteToken();
+      handleAuthFlow();
     });
 
     netlifyIdentity.on('login', (user: any) => {
       setUser(user);
-      netlifyIdentity.close();
+      setAuthError(null);
       fetchBoards();
     });
 
@@ -63,28 +59,52 @@ function App() {
       setBoards([]);
     });
 
+    netlifyIdentity.on('error', (err: Error) => {
+      setAuthError(err.message);
+      // Retry authentication flow after error
+      setTimeout(handleAuthFlow, 1000);
+    });
+
     netlifyIdentity.init({
       APIUrl: 'https://' + window.location.hostname + '/.netlify/identity',
       locale: 'en',
     });
   };
 
-  const checkForInviteToken = () => {
+  const handleAuthFlow = () => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const confirmationToken = params.get('confirmation_token');
     const recoveryToken = params.get('recovery_token');
     const inviteToken = params.get('invite_token');
+    const error = params.get('error');
+    const error_description = params.get('error_description');
+
+    if (error || error_description) {
+      setAuthError(error_description || error || 'Authentication error occurred');
+      return;
+    }
 
     if (token || confirmationToken || recoveryToken || inviteToken) {
-      // Force cleanup of any existing widget state
-      if (window.netlifyIdentity) {
-        window.netlifyIdentity.close();
-        // Small delay to ensure cleanup is complete
-        setTimeout(() => {
-          window.netlifyIdentity.open('signup');
-        }, 100);
+      // Clear any existing widget state
+      window.netlifyIdentity.close();
+      
+      // Handle specific auth flows
+      if (inviteToken) {
+        setTimeout(() => window.netlifyIdentity.open('signup'), 100);
+      } else if (recoveryToken) {
+        setTimeout(() => window.netlifyIdentity.open('recovery'), 100);
+      } else if (confirmationToken) {
+        setTimeout(() => window.netlifyIdentity.open('signup'), 100);
+      } else {
+        setTimeout(() => window.netlifyIdentity.open('login'), 100);
       }
+
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (!user) {
+      // If no user and no special tokens, open login
+      setTimeout(() => window.netlifyIdentity.open('login'), 500);
     }
   };
 
@@ -170,12 +190,6 @@ function App() {
     }
   };
 
-  const handleLogin = () => {
-    if (window.netlifyIdentity) {
-      window.netlifyIdentity.open('login');
-    }
-  };
-
   const handleLogout = () => {
     if (window.netlifyIdentity) {
       window.netlifyIdentity.logout();
@@ -199,12 +213,14 @@ function App() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Marketing Tasks</h1>
         </div>
-        <button
-          onClick={handleLogin}
-          className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
-        >
-          Sign In to Continue
-        </button>
+        {authError && (
+          <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-lg">
+            {authError}
+          </div>
+        )}
+        <div className="animate-pulse text-sm text-gray-500">
+          Opening authentication...
+        </div>
       </div>
     );
   }
