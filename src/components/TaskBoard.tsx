@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Plus, Trash2, Calendar, Flag } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, Flag, Trash2, Check, X } from 'lucide-react';
 import type { Board, Task } from '../types';
 
 interface TaskBoardProps {
@@ -15,6 +15,8 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
   const [newBoardTitle, setNewBoardTitle] = useState('');
   const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
   const [showNewTaskForm, setShowNewTaskForm] = useState<Record<string, boolean>>({});
+  const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
+  const [showDeleteMenu, setShowDeleteMenu] = useState<string | null>(null);
 
   const handleNewBoardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,6 +34,34 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
       setNewTaskTitles(prev => ({ ...prev, [boardId]: '' }));
       setShowNewTaskForm(prev => ({ ...prev, [boardId]: false }));
     }
+  };
+
+  const handleDeleteTask = (boardId: string, taskId: string) => {
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return;
+
+    const updatedBoard = {
+      ...board,
+      tasks: board.tasks.filter(task => task.id !== taskId)
+    };
+
+    onBoardUpdate(updatedBoard);
+  };
+
+  const handleToggleTaskStatus = (boardId: string, taskId: string) => {
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return;
+
+    const updatedBoard = {
+      ...board,
+      tasks: board.tasks.map(task => 
+        task.id === taskId 
+          ? { ...task, status: task.status === 'done' ? 'todo' : 'done' }
+          : task
+      )
+    };
+
+    onBoardUpdate(updatedBoard);
   };
 
   const onDragEnd = (result: any) => {
@@ -79,12 +109,52 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
             <div key={board.id} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg">
               <div className="p-3 flex justify-between items-center">
                 <h3 className="font-semibold text-gray-700">{board.title}</h3>
-                <button 
-                  onClick={() => onDeleteBoard(board.id)}
-                  className="p-1 hover:bg-gray-200 rounded text-red-500"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                <div className="relative">
+                  <button 
+                    onClick={() => setShowDeleteMenu(showDeleteMenu === board.id ? null : board.id)}
+                    className="p-1 hover:bg-gray-200 rounded"
+                  >
+                    <MoreVertical className="w-5 h-5 text-gray-500" />
+                  </button>
+                  
+                  {showDeleteMenu === board.id && (
+                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                      {boardToDelete === board.id ? (
+                        <div className="p-3">
+                          <p className="text-sm text-gray-600 mb-2">Delete this board?</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                onDeleteBoard(board.id);
+                                setBoardToDelete(null);
+                                setShowDeleteMenu(null);
+                              }}
+                              className="flex-1 bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={() => {
+                                setBoardToDelete(null);
+                                setShowDeleteMenu(null);
+                              }}
+                              className="flex-1 bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setBoardToDelete(board.id)}
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-lg"
+                        >
+                          Delete board
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               
               <Droppable droppableId={board.id}>
@@ -101,9 +171,33 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className="bg-white p-3 rounded shadow-sm space-y-2"
+                            className={`bg-white p-3 rounded shadow-sm space-y-2 ${
+                              task.status === 'done' ? 'opacity-75' : ''
+                            }`}
                           >
-                            <div className="text-sm font-medium">{task.title}</div>
+                            <div className="flex justify-between items-start gap-2">
+                              <div className={`text-sm font-medium ${
+                                task.status === 'done' ? 'line-through text-gray-500' : ''
+                              }`}>
+                                {task.title}
+                              </div>
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleToggleTaskStatus(board.id, task.id)}
+                                  className={`p-1 rounded hover:bg-gray-100 ${
+                                    task.status === 'done' ? 'text-green-500' : 'text-gray-400'
+                                  }`}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTask(board.id, task.id)}
+                                  className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
                             {task.description && (
                               <p className="text-sm text-gray-600">{task.description}</p>
                             )}
