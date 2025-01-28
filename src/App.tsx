@@ -9,21 +9,33 @@ function App() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
+    // Ensure Netlify Identity is initialized
+    if (!window.netlifyIdentity) {
+      console.error('Netlify Identity not initialized');
+      setLoading(false);
+      return;
+    }
+
     // Check if user is already logged in
     const currentUser = window.netlifyIdentity.currentUser();
     setUser(currentUser);
 
     // Listen for login/logout events
-    window.netlifyIdentity.on('login', (user: any) => {
+    const handleLogin = (user: any) => {
+      console.log('Login event', user);
       setUser(user);
       window.netlifyIdentity.close();
       fetchBoards();
-    });
+    };
 
-    window.netlifyIdentity.on('logout', () => {
+    const handleLogout = () => {
+      console.log('Logout event');
       setUser(null);
       setBoards([]);
-    });
+    };
+
+    window.netlifyIdentity.on('login', handleLogin);
+    window.netlifyIdentity.on('logout', handleLogout);
 
     if (currentUser) {
       fetchBoards();
@@ -32,15 +44,19 @@ function App() {
     }
 
     return () => {
-      window.netlifyIdentity.off('login');
-      window.netlifyIdentity.off('logout');
+      window.netlifyIdentity.off('login', handleLogin);
+      window.netlifyIdentity.off('logout', handleLogout);
     };
   }, []);
 
   const fetchBoards = async () => {
     try {
       const response = await fetch('/.netlify/functions/tasks');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
+      console.log('Fetched boards:', data);
       setBoards(data);
     } catch (error) {
       console.error('Error fetching boards:', error);
@@ -51,10 +67,13 @@ function App() {
 
   const handleBoardUpdate = async (updatedBoard: Board) => {
     try {
-      await fetch('/.netlify/functions/tasks', {
+      const response = await fetch('/.netlify/functions/tasks', {
         method: 'PUT',
         body: JSON.stringify(updatedBoard),
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       
       setBoards(boards.map(board => 
         board.id === updatedBoard.id ? updatedBoard : board
@@ -76,6 +95,9 @@ function App() {
         method: 'PUT',
         body: JSON.stringify(newBoard),
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       const data = await response.json();
       setBoards([...boards, { ...newBoard, id: data.id }]);
     } catch (error) {
@@ -104,9 +126,12 @@ function App() {
 
   const handleDeleteBoard = async (boardId: string) => {
     try {
-      await fetch(`/.netlify/functions/tasks?id=${boardId}`, {
+      const response = await fetch(`/.netlify/functions/tasks?id=${boardId}`, {
         method: 'DELETE',
       });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
       setBoards(boards.filter(board => board.id !== boardId));
     } catch (error) {
       console.error('Error deleting board:', error);
