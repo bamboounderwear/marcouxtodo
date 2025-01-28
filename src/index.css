@@ -2,10 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Smooth scrolling for desktop */
-@media (min-width: 768px) {
+/* Smooth scrolling for mobile */
+@media (max-width: 767px) {
   .snap-x {
     scroll-behavior: smooth;
+    scroll-snap-type: x mandatory;
+  }
+  
+  .snap-center {
+    scroll-snap-align: center;
   }
 }
 

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Plus, MoreVertical, Calendar, Star, Trash2, Check } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, Star, Trash2, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Board, Task } from '../types';
 
 interface TaskBoardProps {
@@ -17,6 +17,17 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
   const [showNewTaskForm, setShowNewTaskForm] = useState<Record<string, boolean>>({});
   const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
   const [showDeleteMenu, setShowDeleteMenu] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = (direction: 'left' | 'right') => {
+    if (!scrollContainerRef.current) return;
+    const scrollAmount = 320; // Width of a board + gap
+    const currentScroll = scrollContainerRef.current.scrollLeft;
+    scrollContainerRef.current.scrollTo({
+      left: direction === 'left' ? currentScroll - scrollAmount : currentScroll + scrollAmount,
+      behavior: 'smooth'
+    });
+  };
 
   const handleNewBoardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,7 +83,6 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
       task.id === taskId ? { ...task, starred: !task.starred } : task
     );
 
-    // Sort tasks to put starred ones at the top
     const sortedTasks = [...updatedTasks].sort((a, b) => {
       if (a.starred === b.starred) return 0;
       return a.starred ? -1 : 1;
@@ -96,7 +106,6 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
     if (!sourceBoard || !destBoard) return;
 
     if (source.droppableId === destination.droppableId) {
-      // Reorder within same board
       const newTasks = Array.from(sourceBoard.tasks);
       const [removed] = newTasks.splice(source.index, 1);
       newTasks.splice(destination.index, 0, removed);
@@ -106,7 +115,6 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
         tasks: newTasks
       });
     } else {
-      // Move between boards
       const sourceItems = Array.from(sourceBoard.tasks);
       const destItems = Array.from(destBoard.tasks);
       const [removed] = sourceItems.splice(source.index, 1);
@@ -124,11 +132,29 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
   };
 
   return (
-    <div className="flex-1 overflow-x-auto snap-x snap-mandatory">
+    <div className="flex-1 relative">
+      <div className="hidden md:block">
+        <button
+          onClick={() => handleScroll('left')}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-800 text-white"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <button
+          onClick={() => handleScroll('right')}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-800 text-white"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      </div>
+
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="flex gap-4 p-4 min-h-[calc(100vh-4rem)]">
+        <div 
+          ref={scrollContainerRef}
+          className="flex gap-4 p-4 min-h-[calc(100vh-4rem)] overflow-x-auto md:overflow-x-hidden"
+        >
           {boards.map((board) => (
-            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-900 rounded-lg snap-center border border-gray-800">
+            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-900 rounded-lg snap-center md:snap-align-none border border-gray-800">
               <div className="p-3 flex justify-between items-center border-b border-gray-800">
                 <h3 className="font-semibold text-white">{board.title}</h3>
                 <div className="relative">
@@ -287,7 +313,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
             </div>
           ))}
           
-          <div className="flex-shrink-0 w-80 snap-center">
+          <div className="flex-shrink-0 w-80 snap-center md:snap-align-none">
             <form onSubmit={handleNewBoardSubmit} className="bg-gray-900 rounded-lg p-3 space-y-2 border border-gray-800">
               <input
                 type="text"
