@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Plus, MoreVertical, Calendar, Flag, Trash2, Check, X } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, Star, Trash2, Check } from 'lucide-react';
 import type { Board, Task } from '../types';
 
 interface TaskBoardProps {
@@ -59,6 +59,28 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
           ? { ...task, status: task.status === 'done' ? 'todo' : 'done' }
           : task
       )
+    };
+
+    onBoardUpdate(updatedBoard);
+  };
+
+  const handleToggleStarred = (boardId: string, taskId: string) => {
+    const board = boards.find(b => b.id === boardId);
+    if (!board) return;
+
+    const updatedTasks = board.tasks.map(task =>
+      task.id === taskId ? { ...task, starred: !task.starred } : task
+    );
+
+    // Sort tasks to put starred ones at the top
+    const sortedTasks = [...updatedTasks].sort((a, b) => {
+      if (a.starred === b.starred) return 0;
+      return a.starred ? -1 : 1;
+    });
+
+    const updatedBoard = {
+      ...board,
+      tasks: sortedTasks
     };
 
     onBoardUpdate(updatedBoard);
@@ -183,6 +205,14 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                               </div>
                               <div className="flex gap-1">
                                 <button
+                                  onClick={() => handleToggleStarred(board.id, task.id)}
+                                  className={`p-1 rounded hover:bg-gray-100 ${
+                                    task.starred ? 'text-yellow-500' : 'text-gray-400'
+                                  }`}
+                                >
+                                  <Star className="w-4 h-4" fill={task.starred ? 'currentColor' : 'none'} />
+                                </button>
+                                <button
                                   onClick={() => handleToggleTaskStatus(board.id, task.id)}
                                   className={`p-1 rounded hover:bg-gray-100 ${
                                     task.status === 'done' ? 'text-green-500' : 'text-gray-400'
@@ -201,22 +231,12 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                             {task.description && (
                               <p className="text-sm text-gray-600">{task.description}</p>
                             )}
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              {task.dueDate && (
-                                <div className="flex items-center gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  {new Date(task.dueDate).toLocaleDateString()}
-                                </div>
-                              )}
-                              <div className={`flex items-center gap-1 ${
-                                task.priority === 'high' ? 'text-red-500' :
-                                task.priority === 'medium' ? 'text-yellow-500' :
-                                'text-green-500'
-                              }`}>
-                                <Flag className="w-3 h-3" />
-                                {task.priority}
+                            {task.dueDate && (
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(task.dueDate).toLocaleDateString()}
                               </div>
-                            </div>
+                            )}
                           </div>
                         )}
                       </Draggable>

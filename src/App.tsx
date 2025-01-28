@@ -64,7 +64,7 @@ function App() {
     const newTask: Task = {
       id: `task-${Date.now()}`,
       title,
-      priority: 'medium',
+      starred: false,
       status: 'todo'
     };
 
