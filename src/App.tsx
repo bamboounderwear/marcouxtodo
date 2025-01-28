@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { TaskBoard } from './components/TaskBoard';
 import { Board, Task } from './types';
-import { Briefcase } from 'lucide-react';
 
 function App() {
   const [boards, setBoards] = useState<Board[]>([]);
@@ -89,19 +88,19 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <header className="bg-gray-900 text-white">
+    <div className="min-h-screen bg-black text-white">
+      <header className="bg-gray-900 border-b border-gray-800">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-6 h-6" />
-            <h1 className="text-xl font-semibold">Marketing Agency Tasks</h1>
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
+            <h1 className="text-xl font-semibold">TaskFlow</h1>
           </div>
         </div>
       </header>

@@ -128,22 +128,22 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-4 p-4 min-h-[calc(100vh-4rem)]">
           {boards.map((board) => (
-            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg snap-center">
-              <div className="p-3 flex justify-between items-center">
-                <h3 className="font-semibold text-gray-700">{board.title}</h3>
+            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-900 rounded-lg snap-center border border-gray-800">
+              <div className="p-3 flex justify-between items-center border-b border-gray-800">
+                <h3 className="font-semibold text-white">{board.title}</h3>
                 <div className="relative">
                   <button 
                     onClick={() => setShowDeleteMenu(showDeleteMenu === board.id ? null : board.id)}
-                    className="p-1 hover:bg-gray-200 rounded"
+                    className="p-1 hover:bg-gray-800 rounded"
                   >
-                    <MoreVertical className="w-5 h-5 text-gray-500" />
+                    <MoreVertical className="w-5 h-5 text-gray-400" />
                   </button>
                   
                   {showDeleteMenu === board.id && (
-                    <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                    <div className="absolute right-0 mt-1 w-48 bg-gray-900 rounded-lg shadow-lg border border-gray-800 z-10">
                       {boardToDelete === board.id ? (
                         <div className="p-3">
-                          <p className="text-sm text-gray-600 mb-2">Delete this board?</p>
+                          <p className="text-sm text-gray-300 mb-2">Delete this board?</p>
                           <div className="flex gap-2">
                             <button
                               onClick={() => {
@@ -160,7 +160,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                                 setBoardToDelete(null);
                                 setShowDeleteMenu(null);
                               }}
-                              className="flex-1 bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300"
+                              className="flex-1 bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-600"
                             >
                               Cancel
                             </button>
@@ -169,7 +169,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                       ) : (
                         <button
                           onClick={() => setBoardToDelete(board.id)}
-                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 rounded-lg"
+                          className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-gray-800 rounded-lg"
                         >
                           Delete board
                         </button>
@@ -193,20 +193,20 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`bg-white p-3 rounded shadow-sm space-y-2 ${
+                            className={`bg-gray-800 p-3 rounded shadow-sm space-y-2 ${
                               task.status === 'done' ? 'opacity-75' : ''
                             }`}
                           >
                             <div className="flex justify-between items-start gap-2">
                               <div className={`text-sm font-medium ${
-                                task.status === 'done' ? 'line-through text-gray-500' : ''
+                                task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-100'
                               }`}>
                                 {task.title}
                               </div>
                               <div className="flex gap-1">
                                 <button
                                   onClick={() => handleToggleStarred(board.id, task.id)}
-                                  className={`p-1 rounded hover:bg-gray-100 ${
+                                  className={`p-1 rounded hover:bg-gray-700 ${
                                     task.starred ? 'text-yellow-500' : 'text-gray-400'
                                   }`}
                                 >
@@ -214,7 +214,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                                 </button>
                                 <button
                                   onClick={() => handleToggleTaskStatus(board.id, task.id)}
-                                  className={`p-1 rounded hover:bg-gray-100 ${
+                                  className={`p-1 rounded hover:bg-gray-700 ${
                                     task.status === 'done' ? 'text-green-500' : 'text-gray-400'
                                   }`}
                                 >
@@ -222,14 +222,14 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                                 </button>
                                 <button
                                   onClick={() => handleDeleteTask(board.id, task.id)}
-                                  className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-red-500"
+                                  className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-red-500"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </div>
                             </div>
                             {task.description && (
-                              <p className="text-sm text-gray-600">{task.description}</p>
+                              <p className="text-sm text-gray-400">{task.description}</p>
                             )}
                             {task.dueDate && (
                               <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -250,7 +250,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                           value={newTaskTitles[board.id] || ''}
                           onChange={(e) => setNewTaskTitles(prev => ({ ...prev, [board.id]: e.target.value }))}
                           placeholder="Task title"
-                          className="w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full p-2 text-sm bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           autoFocus
                         />
                         <div className="flex gap-2">
@@ -266,7 +266,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                               setShowNewTaskForm(prev => ({ ...prev, [board.id]: false }));
                               setNewTaskTitles(prev => ({ ...prev, [board.id]: '' }));
                             }}
-                            className="flex-1 bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300"
+                            className="flex-1 bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm hover:bg-gray-600"
                           >
                             Cancel
                           </button>
@@ -275,7 +275,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
                     ) : (
                       <button
                         onClick={() => setShowNewTaskForm(prev => ({ ...prev, [board.id]: true }))}
-                        className="w-full p-2 text-sm text-gray-600 hover:bg-gray-200 rounded flex items-center gap-2"
+                        className="w-full p-2 text-sm text-gray-400 hover:bg-gray-800 rounded flex items-center gap-2"
                       >
                         <Plus className="w-4 h-4" />
                         Add task
@@ -288,17 +288,17 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
           ))}
           
           <div className="flex-shrink-0 w-80 snap-center">
-            <form onSubmit={handleNewBoardSubmit} className="bg-gray-100 rounded-lg p-3 space-y-2">
+            <form onSubmit={handleNewBoardSubmit} className="bg-gray-900 rounded-lg p-3 space-y-2 border border-gray-800">
               <input
                 type="text"
                 value={newBoardTitle}
                 onChange={(e) => setNewBoardTitle(e.target.value)}
                 placeholder="Enter board title"
-                className="w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full p-2 text-sm bg-gray-800 border border-gray-700 rounded text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
                 type="submit"
-                className="w-full bg-blue-500 text-white p-2 rounded text-sm hover:bg-blue-600 flex items-center justify-center gap-2"
+                className="w-full bg-blue-500 text-white p-2 rounded text-sm hover:bg-blue-600 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!newBoardTitle.trim()}
               >
                 <Plus className="w-4 h-4" />
