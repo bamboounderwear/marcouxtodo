@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Ensure Netlify Identity widget is visible */
+.netlify-identity-widget {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: fixed !important;
+  z-index: 9999 !important;
+}
+
+/* Fix modal backdrop */
+.netlify-identity-widget-overlay {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  background: rgba(14, 30, 37, 0.8) !important;
+}

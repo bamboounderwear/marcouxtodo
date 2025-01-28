@@ -17,16 +17,17 @@ function App() {
 
   useEffect(() => {
     // Initialize Netlify Identity
-    if (document.getElementById('netlify-identity-widget')) {
-      initializeIdentity();
-    } else {
-      const script = document.createElement('script');
-      script.id = 'netlify-identity-widget';
-      script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-      script.async = true;
-      script.onload = initializeIdentity;
-      document.head.appendChild(script);
+    const existingScript = document.getElementById('netlify-identity-widget');
+    if (existingScript) {
+      document.head.removeChild(existingScript);
     }
+
+    const script = document.createElement('script');
+    script.id = 'netlify-identity-widget';
+    script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+    script.async = true;
+    script.onload = initializeIdentity;
+    document.head.appendChild(script);
 
     return () => {
       if (window.netlifyIdentity) {
@@ -64,6 +65,7 @@ function App() {
 
     netlifyIdentity.init({
       APIUrl: 'https://' + window.location.hostname + '/.netlify/identity',
+      locale: 'en',
     });
   };
 
@@ -75,9 +77,14 @@ function App() {
     const inviteToken = params.get('invite_token');
 
     if (token || confirmationToken || recoveryToken || inviteToken) {
-      setTimeout(() => {
-        window.netlifyIdentity.open('signup');
-      }, 500);
+      // Force cleanup of any existing widget state
+      if (window.netlifyIdentity) {
+        window.netlifyIdentity.close();
+        // Small delay to ensure cleanup is complete
+        setTimeout(() => {
+          window.netlifyIdentity.open('signup');
+        }, 100);
+      }
     }
   };
 
@@ -212,7 +219,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-gray-900 text-white sticky top-0 z-50">
+      <header className="bg-gray-900 text-white sticky top-0 z-40">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
