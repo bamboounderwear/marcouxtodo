@@ -21,20 +21,8 @@ function App() {
     script.onload = () => {
       const { netlifyIdentity } = window;
       
-      // Handle the invite token if present
-      const hash = document.location.hash;
-      if (hash && hash.includes('invite_token')) {
-        const token = hash.match(/invite_token=([^&]+)/)?.[1];
-        if (token) {
-          netlifyIdentity.open('signup');
-        }
-      }
-
       netlifyIdentity.on('init', (user: any) => {
         setUser(user);
-        if (hash && hash.includes('confirmation_token')) {
-          netlifyIdentity.open('signup');
-        }
       });
 
       netlifyIdentity.on('login', (user: any) => {
@@ -48,10 +36,18 @@ function App() {
         setBoards([]);
       });
 
-      netlifyIdentity.init({
-        locale: 'en', // defaults to 'en'
-        enableSignup: true,
-      });
+      netlifyIdentity.init();
+
+      // After initialization, check for invite token
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('token');
+      const confirmationToken = params.get('confirmation_token');
+      const recoveryToken = params.get('recovery_token');
+      const inviteToken = params.get('invite_token');
+
+      if (token || confirmationToken || recoveryToken || inviteToken) {
+        netlifyIdentity.open('signup');
+      }
     };
     document.head.appendChild(script);
 
@@ -143,7 +139,7 @@ function App() {
   };
 
   const handleLogin = () => {
-    window.netlifyIdentity.open();
+    window.netlifyIdentity.open('login');
   };
 
   const handleLogout = () => {
