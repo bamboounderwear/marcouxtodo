@@ -13,48 +13,73 @@ function App() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+  const [identityReady, setIdentityReady] = useState(false);
 
   useEffect(() => {
     // Initialize Netlify Identity
-    const script = document.createElement('script');
-    script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
-    script.onload = () => {
-      const { netlifyIdentity } = window;
-      
-      netlifyIdentity.on('init', (user: any) => {
-        setUser(user);
-      });
-
-      netlifyIdentity.on('login', (user: any) => {
-        setUser(user);
-        netlifyIdentity.close();
-        fetchBoards();
-      });
-
-      netlifyIdentity.on('logout', () => {
-        setUser(null);
-        setBoards([]);
-      });
-
-      netlifyIdentity.init();
-
-      // After initialization, check for invite token
-      const params = new URLSearchParams(window.location.search);
-      const token = params.get('token');
-      const confirmationToken = params.get('confirmation_token');
-      const recoveryToken = params.get('recovery_token');
-      const inviteToken = params.get('invite_token');
-
-      if (token || confirmationToken || recoveryToken || inviteToken) {
-        netlifyIdentity.open('signup');
-      }
-    };
-    document.head.appendChild(script);
+    if (document.getElementById('netlify-identity-widget')) {
+      initializeIdentity();
+    } else {
+      const script = document.createElement('script');
+      script.id = 'netlify-identity-widget';
+      script.src = 'https://identity.netlify.com/v1/netlify-identity-widget.js';
+      script.async = true;
+      script.onload = initializeIdentity;
+      document.head.appendChild(script);
+    }
 
     return () => {
-      script.remove();
+      if (window.netlifyIdentity) {
+        window.netlifyIdentity.off('init');
+        window.netlifyIdentity.off('login');
+        window.netlifyIdentity.off('logout');
+      }
     };
   }, []);
+
+  const initializeIdentity = () => {
+    const { netlifyIdentity } = window;
+    
+    if (!netlifyIdentity) {
+      setTimeout(initializeIdentity, 100); // Retry if not ready
+      return;
+    }
+
+    netlifyIdentity.on('init', (user: any) => {
+      setUser(user);
+      setIdentityReady(true);
+      checkForInviteToken();
+    });
+
+    netlifyIdentity.on('login', (user: any) => {
+      setUser(user);
+      netlifyIdentity.close();
+      fetchBoards();
+    });
+
+    netlifyIdentity.on('logout', () => {
+      setUser(null);
+      setBoards([]);
+    });
+
+    netlifyIdentity.init({
+      APIUrl: 'https://' + window.location.hostname + '/.netlify/identity',
+    });
+  };
+
+  const checkForInviteToken = () => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const confirmationToken = params.get('confirmation_token');
+    const recoveryToken = params.get('recovery_token');
+    const inviteToken = params.get('invite_token');
+
+    if (token || confirmationToken || recoveryToken || inviteToken) {
+      setTimeout(() => {
+        window.netlifyIdentity.open('signup');
+      }, 500);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -139,12 +164,24 @@ function App() {
   };
 
   const handleLogin = () => {
-    window.netlifyIdentity.open('login');
+    if (window.netlifyIdentity) {
+      window.netlifyIdentity.open('login');
+    }
   };
 
   const handleLogout = () => {
-    window.netlifyIdentity.logout();
+    if (window.netlifyIdentity) {
+      window.netlifyIdentity.logout();
+    }
   };
+
+  if (!identityReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
