@@ -19,55 +19,14 @@ function App() {
   const [inviteToken, setInviteToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const initializeIdentity = () => {
-      const { netlifyIdentity } = window;
-      
-      if (!netlifyIdentity) {
-        setTimeout(initializeIdentity, 100);
-        return;
-      }
+    const { netlifyIdentity } = window;
+    
+    if (!netlifyIdentity) {
+      console.error('Netlify Identity not loaded');
+      return;
+    }
 
-      netlifyIdentity.on('init', (user: any) => {
-        console.log('Identity initialized', { user });
-        setUser(user);
-        setIdentityReady(true);
-        checkForInviteToken();
-      });
-
-      netlifyIdentity.on('login', (user: any) => {
-        console.log('Login event', { user });
-        setUser(user);
-        setAuthError(null);
-        setInviteToken(null);
-        fetchBoards();
-      });
-
-      netlifyIdentity.on('logout', () => {
-        setUser(null);
-        setBoards([]);
-      });
-
-      netlifyIdentity.on('error', (err: Error) => {
-        console.error('Identity error:', err);
-        setAuthError(err.message);
-      });
-
-      netlifyIdentity.init();
-    };
-
-    initializeIdentity();
-
-    return () => {
-      if (window.netlifyIdentity) {
-        window.netlifyIdentity.off('init');
-        window.netlifyIdentity.off('login');
-        window.netlifyIdentity.off('logout');
-        window.netlifyIdentity.off('error');
-      }
-    };
-  }, []);
-
-  const checkForInviteToken = () => {
+    // Check for invite token immediately
     const hash = window.location.hash;
     if (hash.includes('invite_token=')) {
       const token = hash.split('invite_token=')[1];
@@ -75,13 +34,43 @@ function App() {
       // Clear the URL without triggering a reload
       window.history.replaceState(null, '', window.location.pathname);
     }
-  };
 
-  useEffect(() => {
-    if (user && !inviteToken) {
+    netlifyIdentity.on('init', (user: any) => {
+      console.log('Identity initialized', { user });
+      setUser(user);
+      setIdentityReady(true);
+    });
+
+    netlifyIdentity.on('login', (user: any) => {
+      console.log('Login event', { user });
+      setUser(user);
+      setAuthError(null);
+      setInviteToken(null);
       fetchBoards();
+    });
+
+    netlifyIdentity.on('logout', () => {
+      setUser(null);
+      setBoards([]);
+    });
+
+    netlifyIdentity.on('error', (err: Error) => {
+      console.error('Identity error:', err);
+      setAuthError(err.message);
+    });
+
+    // If there's an invite token, open the widget
+    if (hash.includes('invite_token=') || hash.includes('recovery_token=')) {
+      netlifyIdentity.open('signup');
     }
-  }, [user, inviteToken]);
+
+    return () => {
+      netlifyIdentity.off('init');
+      netlifyIdentity.off('login');
+      netlifyIdentity.off('logout');
+      netlifyIdentity.off('error');
+    };
+  }, []);
 
   const fetchBoards = async () => {
     try {
