@@ -38,10 +38,7 @@ function App() {
     }
   };
 
-  const handleAddBoard = async () => {
-    const title = prompt('Enter board title:');
-    if (!title) return;
-
+  const handleAddBoard = async (title: string) => {
     const newBoard: Board = {
       id: `board-${Date.now()}`,
       title,
@@ -60,10 +57,7 @@ function App() {
     }
   };
 
-  const handleAddTask = async (boardId: string) => {
-    const title = prompt('Enter task title:');
-    if (!title) return;
-
+  const handleAddTask = async (boardId: string, title: string) => {
     const board = boards.find(b => b.id === boardId);
     if (!board) return;
 
@@ -80,6 +74,17 @@ function App() {
     };
 
     await handleBoardUpdate(updatedBoard);
+  };
+
+  const handleDeleteBoard = async (boardId: string) => {
+    try {
+      await fetch(`/.netlify/functions/tasks?id=${boardId}`, {
+        method: 'DELETE',
+      });
+      setBoards(boards.filter(board => board.id !== boardId));
+    } catch (error) {
+      console.error('Error deleting board:', error);
+    }
   };
 
   if (loading) {
@@ -107,6 +112,7 @@ function App() {
           onBoardUpdate={handleBoardUpdate}
           onAddBoard={handleAddBoard}
           onAddTask={handleAddTask}
+          onDeleteBoard={handleDeleteBoard}
         />
       </main>
     </div>

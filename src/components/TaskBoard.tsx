@@ -1,16 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Plus, MoreVertical, Calendar, Flag } from 'lucide-react';
+import { Plus, Trash2, Calendar, Flag } from 'lucide-react';
 import type { Board, Task } from '../types';
 
 interface TaskBoardProps {
   boards: Board[];
   onBoardUpdate: (board: Board) => void;
-  onAddBoard: () => void;
-  onAddTask: (boardId: string) => void;
+  onAddBoard: (title: string) => void;
+  onAddTask: (boardId: string, title: string) => void;
+  onDeleteBoard: (boardId: string) => void;
 }
 
-export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask }: TaskBoardProps) {
+export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDeleteBoard }: TaskBoardProps) {
+  const [newBoardTitle, setNewBoardTitle] = useState('');
+  const [newTaskTitles, setNewTaskTitles] = useState<Record<string, string>>({});
+  const [showNewTaskForm, setShowNewTaskForm] = useState<Record<string, boolean>>({});
+
+  const handleNewBoardSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newBoardTitle.trim()) {
+      onAddBoard(newBoardTitle.trim());
+      setNewBoardTitle('');
+    }
+  };
+
+  const handleNewTaskSubmit = (e: React.FormEvent, boardId: string) => {
+    e.preventDefault();
+    const title = newTaskTitles[boardId]?.trim();
+    if (title) {
+      onAddTask(boardId, title);
+      setNewTaskTitles(prev => ({ ...prev, [boardId]: '' }));
+      setShowNewTaskForm(prev => ({ ...prev, [boardId]: false }));
+    }
+  };
+
   const onDragEnd = (result: any) => {
     if (!result.destination) return;
 
@@ -56,8 +79,11 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask }: Task
             <div key={board.id} className="flex-shrink-0 w-80 bg-gray-100 rounded-lg">
               <div className="p-3 flex justify-between items-center">
                 <h3 className="font-semibold text-gray-700">{board.title}</h3>
-                <button className="p-1 hover:bg-gray-200 rounded">
-                  <MoreVertical className="w-5 h-5 text-gray-500" />
+                <button 
+                  onClick={() => onDeleteBoard(board.id)}
+                  className="p-1 hover:bg-gray-200 rounded text-red-500"
+                >
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
               
@@ -102,26 +128,70 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask }: Task
                       </Draggable>
                     ))}
                     {provided.placeholder}
-                    <button
-                      onClick={() => onAddTask(board.id)}
-                      className="w-full p-2 text-sm text-gray-600 hover:bg-gray-200 rounded flex items-center gap-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add task
-                    </button>
+                    
+                    {showNewTaskForm[board.id] ? (
+                      <form onSubmit={(e) => handleNewTaskSubmit(e, board.id)} className="space-y-2">
+                        <input
+                          type="text"
+                          value={newTaskTitles[board.id] || ''}
+                          onChange={(e) => setNewTaskTitles(prev => ({ ...prev, [board.id]: e.target.value }))}
+                          placeholder="Task title"
+                          className="w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          autoFocus
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="submit"
+                            className="flex-1 bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
+                          >
+                            Add
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowNewTaskForm(prev => ({ ...prev, [board.id]: false }));
+                              setNewTaskTitles(prev => ({ ...prev, [board.id]: '' }));
+                            }}
+                            className="flex-1 bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-300"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => setShowNewTaskForm(prev => ({ ...prev, [board.id]: true }))}
+                        className="w-full p-2 text-sm text-gray-600 hover:bg-gray-200 rounded flex items-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add task
+                      </button>
+                    )}
                   </div>
                 )}
               </Droppable>
             </div>
           ))}
           
-          <button
-            onClick={onAddBoard}
-            className="flex-shrink-0 w-80 h-fit bg-gray-100 rounded-lg p-3 hover:bg-gray-200 flex items-center gap-2 text-gray-600"
-          >
-            <Plus className="w-5 h-5" />
-            Add new board
-          </button>
+          <div className="flex-shrink-0 w-80">
+            <form onSubmit={handleNewBoardSubmit} className="bg-gray-100 rounded-lg p-3 space-y-2">
+              <input
+                type="text"
+                value={newBoardTitle}
+                onChange={(e) => setNewBoardTitle(e.target.value)}
+                placeholder="Enter board title"
+                className="w-full p-2 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                className="w-full bg-blue-500 text-white p-2 rounded text-sm hover:bg-blue-600 flex items-center justify-center gap-2"
+                disabled={!newBoardTitle.trim()}
+              >
+                <Plus className="w-4 h-4" />
+                Add new board
+              </button>
+            </form>
+          </div>
         </div>
       </DragDropContext>
     </div>
