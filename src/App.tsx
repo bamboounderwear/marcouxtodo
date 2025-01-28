@@ -97,14 +97,14 @@ function App() {
   return (
     <div className="min-h-screen bg-black text-white">
       <header className="bg-gray-900 border-b border-gray-800">
-        <div className="container mx-auto px-4 py-4">
+        <div className="px-4 py-4">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
+      <main className="px-4 py-6">
         <TaskBoard
           boards={boards}
           onBoardUpdate={handleBoardUpdate}
