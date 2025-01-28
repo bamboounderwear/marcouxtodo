@@ -49,9 +49,19 @@ function App() {
     };
   }, []);
 
+  const getAuthHeaders = () => {
+    const token = user?.token?.access_token;
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    };
+  };
+
   const fetchBoards = async () => {
     try {
-      const response = await fetch('/.netlify/functions/tasks');
+      const response = await fetch('/.netlify/functions/tasks', {
+        headers: getAuthHeaders()
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -69,6 +79,7 @@ function App() {
     try {
       const response = await fetch('/.netlify/functions/tasks', {
         method: 'PUT',
+        headers: getAuthHeaders(),
         body: JSON.stringify(updatedBoard),
       });
       if (!response.ok) {
@@ -93,6 +104,7 @@ function App() {
     try {
       const response = await fetch('/.netlify/functions/tasks', {
         method: 'PUT',
+        headers: getAuthHeaders(),
         body: JSON.stringify(newBoard),
       });
       if (!response.ok) {
@@ -128,6 +140,7 @@ function App() {
     try {
       const response = await fetch(`/.netlify/functions/tasks?id=${boardId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders()
       });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
