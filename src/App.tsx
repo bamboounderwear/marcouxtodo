@@ -60,6 +60,7 @@ function App() {
     });
 
     netlifyIdentity.on('error', (err: Error) => {
+      console.error('Identity error:', err);
       setAuthError(err.message);
       // Retry authentication flow after error
       setTimeout(handleAuthFlow, 1000);
@@ -72,13 +73,20 @@ function App() {
   };
 
   const handleAuthFlow = () => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const confirmationToken = params.get('confirmation_token');
-    const recoveryToken = params.get('recovery_token');
-    const inviteToken = params.get('invite_token');
-    const error = params.get('error');
-    const error_description = params.get('error_description');
+    // Check URL hash for tokens
+    const hash = window.location.hash.substring(1);
+    const hashParams = new URLSearchParams(hash);
+    
+    // Check URL query params for tokens
+    const queryParams = new URLSearchParams(window.location.search);
+    
+    // Combine hash and query parameters
+    const token = queryParams.get('token') || hashParams.get('token');
+    const confirmationToken = queryParams.get('confirmation_token') || hashParams.get('confirmation_token');
+    const recoveryToken = queryParams.get('recovery_token') || hashParams.get('recovery_token');
+    const inviteToken = queryParams.get('invite_token') || hashParams.get('invite_token');
+    const error = queryParams.get('error') || hashParams.get('error');
+    const error_description = queryParams.get('error_description') || hashParams.get('error_description');
 
     if (error || error_description) {
       setAuthError(error_description || error || 'Authentication error occurred');
@@ -86,12 +94,23 @@ function App() {
     }
 
     if (token || confirmationToken || recoveryToken || inviteToken) {
+      console.log('Processing token:', { token, confirmationToken, recoveryToken, inviteToken });
+      
       // Clear any existing widget state
       window.netlifyIdentity.close();
       
-      // Handle specific auth flows
+      // Force the widget to process the token
       if (inviteToken) {
-        setTimeout(() => window.netlifyIdentity.open('signup'), 100);
+        window.netlifyIdentity.store.set('usedInviteToken', inviteToken);
+        window.netlifyIdentity.store.set('loginModal.isOpen', true);
+        setTimeout(() => {
+          window.netlifyIdentity.open('signup');
+          // Additional force to ensure the signup form is shown
+          const modal = document.querySelector('.netlify-identity-widget');
+          if (modal) {
+            modal.setAttribute('data-screen', 'signup');
+          }
+        }, 100);
       } else if (recoveryToken) {
         setTimeout(() => window.netlifyIdentity.open('recovery'), 100);
       } else if (confirmationToken) {
