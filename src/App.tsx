@@ -14,7 +14,6 @@ function App() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [identityReady, setIdentityReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [inviteToken, setInviteToken] = useState<string | null>(null);
 
@@ -26,23 +25,24 @@ function App() {
       return;
     }
 
-    // Check for invite token immediately
+    // Check for invite token
     const hash = window.location.hash;
     if (hash.includes('invite_token=')) {
       const token = hash.split('invite_token=')[1];
       setInviteToken(token);
-      // Clear the URL without triggering a reload
       window.history.replaceState(null, '', window.location.pathname);
     }
 
-    netlifyIdentity.on('init', (user: any) => {
-      console.log('Identity initialized', { user });
-      setUser(user);
-      setIdentityReady(true);
-    });
+    // Set initial user state
+    const currentUser = netlifyIdentity.currentUser();
+    setUser(currentUser);
+    if (currentUser) {
+      fetchBoards();
+    } else {
+      setLoading(false);
+    }
 
     netlifyIdentity.on('login', (user: any) => {
-      console.log('Login event', { user });
       setUser(user);
       setAuthError(null);
       setInviteToken(null);
@@ -52,11 +52,13 @@ function App() {
     netlifyIdentity.on('logout', () => {
       setUser(null);
       setBoards([]);
+      setLoading(false);
     });
 
     netlifyIdentity.on('error', (err: Error) => {
       console.error('Identity error:', err);
       setAuthError(err.message);
+      setLoading(false);
     });
 
     // If there's an invite token, open the widget
@@ -65,7 +67,6 @@ function App() {
     }
 
     return () => {
-      netlifyIdentity.off('init');
       netlifyIdentity.off('login');
       netlifyIdentity.off('logout');
       netlifyIdentity.off('error');
@@ -154,14 +155,6 @@ function App() {
     }
   };
 
-  if (!identityReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
-
   // Show password setup if we have an invite token
   if (inviteToken) {
     return <PasswordSetup token={inviteToken} onError={setAuthError} />;
@@ -237,4 +230,4 @@ function App() {
   );
 }
 
-export default App
+export default App;
