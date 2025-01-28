@@ -11,16 +11,14 @@ export default async function handler(req, context: Context) {
   }
 
   try {
-    const userId = context.identity.user.id;
     const store = getStore("marketing-tasks");
 
     if (req.method === "GET") {
-      const result = await store.list({ prefix: `${userId}/` });
-      const keys = result.blobs.map((blob) => blob.key);
+      const result = await store.list();
       const boards = await Promise.all(
-        keys.map(async (key) => {
-          const data = await store.get(key, { type: "json" });
-          return { id: key.replace(`${userId}/`, ''), ...data };
+        result.blobs.map(async (blob) => {
+          const data = await store.get(blob.key, { type: "json" });
+          return { id: blob.key, ...data };
         })
       );
       return new Response(JSON.stringify(boards), { 
@@ -32,8 +30,7 @@ export default async function handler(req, context: Context) {
     if (req.method === "PUT") {
       const body = await req.json();
       const boardId = body.id || `board-${Date.now()}`;
-      const key = `${userId}/${boardId}`;
-      await store.setJSON(key, body);
+      await store.setJSON(boardId, body);
       return new Response(JSON.stringify({ message: "Board saved", id: boardId }), { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -49,7 +46,7 @@ export default async function handler(req, context: Context) {
           headers: { 'Content-Type': 'application/json' }
         });
       }
-      await store.delete(`${userId}/${id}`);
+      await store.delete(id);
       return new Response(JSON.stringify({ message: "Board deleted" }), { 
         status: 200,
         headers: { 'Content-Type': 'application/json' }
