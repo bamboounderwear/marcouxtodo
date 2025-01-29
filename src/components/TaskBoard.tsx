@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Plus, MoreVertical, Calendar, Star, Trash2, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, MoreVertical, Calendar, Star, Trash2, Check } from 'lucide-react';
 import type { Board, Task } from '../types';
 
 interface TaskBoardProps {
@@ -17,17 +17,17 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
   const [showNewTaskForm, setShowNewTaskForm] = useState<Record<string, boolean>>({});
   const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
   const [showDeleteMenu, setShowDeleteMenu] = useState<string | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleScroll = (direction: 'left' | 'right') => {
-    if (!scrollContainerRef.current) return;
-    const scrollAmount = 320; // Width of a board + gap
-    const currentScroll = scrollContainerRef.current.scrollLeft;
-    scrollContainerRef.current.scrollTo({
-      left: direction === 'left' ? currentScroll - scrollAmount : currentScroll + scrollAmount,
-      behavior: 'smooth'
-    });
-  };
+  // Get all starred tasks across all boards
+  const starredTasks = boards.flatMap(board => 
+    board.tasks
+      .filter(task => task.starred)
+      .map(task => ({
+        ...task,
+        boardTitle: board.title,
+        boardId: board.id
+      }))
+  );
 
   const handleNewBoardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +83,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
       task.id === taskId ? { ...task, starred: !task.starred } : task
     );
 
+    // Sort tasks to put starred ones at the top
     const sortedTasks = [...updatedTasks].sort((a, b) => {
       if (a.starred === b.starred) return 0;
       return a.starred ? -1 : 1;
@@ -100,12 +101,66 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
     if (!result.destination) return;
 
     const { source, destination } = result;
-    const sourceBoard = boards.find(b => b.id === source.droppableId);
-    const destBoard = boards.find(b => b.id === destination.droppableId);
+    
+    // Handle dragging from Priority board
+    if (source.droppableId === 'priority') {
+      const [taskId, originalBoardId] = source.draggableId.split('::');
+      const destBoard = boards.find(b => b.id === destination.droppableId);
+      if (!destBoard) return;
 
-    if (!sourceBoard || !destBoard) return;
+      const sourceBoard = boards.find(b => b.id === originalBoardId);
+      if (!sourceBoard) return;
 
+      const task = sourceBoard.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      // Update source board
+      const updatedSourceBoard = {
+        ...sourceBoard,
+        tasks: sourceBoard.tasks.map(t => 
+          t.id === taskId ? { ...t, starred: false } : t
+        )
+      };
+
+      onBoardUpdate(updatedSourceBoard);
+
+      // Update destination board if different from source
+      if (originalBoardId !== destination.droppableId) {
+        const updatedDestBoard = {
+          ...destBoard,
+          tasks: [
+            ...destBoard.tasks.slice(0, destination.index),
+            { ...task, starred: false },
+            ...destBoard.tasks.slice(destination.index)
+          ]
+        };
+        onBoardUpdate(updatedDestBoard);
+      }
+      return;
+    }
+
+    // Handle dragging to Priority board
+    if (destination.droppableId === 'priority') {
+      const sourceBoard = boards.find(b => b.id === source.droppableId);
+      if (!sourceBoard) return;
+
+      const updatedBoard = {
+        ...sourceBoard,
+        tasks: sourceBoard.tasks.map(task => 
+          task.id === result.draggableId ? { ...task, starred: true } : task
+        )
+      };
+
+      onBoardUpdate(updatedBoard);
+      return;
+    }
+
+    // Handle normal board-to-board dragging
     if (source.droppableId === destination.droppableId) {
+      // Reorder within same board
+      const sourceBoard = boards.find(b => b.id === source.droppableId);
+      if (!sourceBoard) return;
+
       const newTasks = Array.from(sourceBoard.tasks);
       const [removed] = newTasks.splice(source.index, 1);
       newTasks.splice(destination.index, 0, removed);
@@ -115,6 +170,11 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
         tasks: newTasks
       });
     } else {
+      // Move between boards
+      const sourceBoard = boards.find(b => b.id === source.droppableId);
+      const destBoard = boards.find(b => b.id === destination.droppableId);
+      if (!sourceBoard || !destBoard) return;
+
       const sourceItems = Array.from(sourceBoard.tasks);
       const destItems = Array.from(destBoard.tasks);
       const [removed] = sourceItems.splice(source.index, 1);
@@ -132,29 +192,95 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
   };
 
   return (
-    <div className="flex-1 relative">
-      <div className="hidden md:block">
-        <button
-          onClick={() => handleScroll('left')}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-800 text-white"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <button
-          onClick={() => handleScroll('right')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-gray-900 p-2 rounded-full shadow-lg hover:bg-gray-800 text-white"
-        >
-          <ChevronRight className="w-6 h-6" />
-        </button>
-      </div>
-
+    <div className="flex-1 overflow-x-auto snap-x snap-mandatory">
       <DragDropContext onDragEnd={onDragEnd}>
-        <div 
-          ref={scrollContainerRef}
-          className="flex gap-4 p-4 min-h-[calc(100vh-4rem)] overflow-x-auto md:overflow-x-hidden"
-        >
+        <div className="flex gap-4 p-4 min-h-[calc(100vh-4rem)]">
+          {/* Priority Board - Fixed on the left */}
+          <div className="flex-shrink-0 w-80 bg-gray-900 rounded-lg border border-gray-800">
+            <div className="p-3 border-b border-gray-800 bg-blue-500">
+              <h3 className="font-semibold text-white flex items-center gap-2">
+                <Star className="w-5 h-5" fill="currentColor" />
+                Priority Tasks
+              </h3>
+            </div>
+            <Droppable droppableId="priority">
+              {(provided) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className="p-2 space-y-2"
+                >
+                  {starredTasks.map((task, index) => (
+                    <Draggable 
+                      key={`${task.id}::${task.boardId}`}
+                      draggableId={`${task.id}::${task.boardId}`}
+                      index={index}
+                    >
+                      {(provided) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className={`bg-gray-800 p-3 rounded shadow-sm space-y-2 ${
+                            task.status === 'done' ? 'opacity-75' : ''
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <div>
+                              <div className={`text-sm font-medium ${
+                                task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-100'
+                              }`}>
+                                {task.title}
+                              </div>
+                              <div className="text-xs text-blue-400 mt-1">
+                                {task.boardTitle}
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleToggleStarred(task.boardId, task.id)}
+                                className="p-1 rounded hover:bg-gray-700 text-yellow-500"
+                              >
+                                <Star className="w-4 h-4" fill="currentColor" />
+                              </button>
+                              <button
+                                onClick={() => handleToggleTaskStatus(task.boardId, task.id)}
+                                className={`p-1 rounded hover:bg-gray-700 ${
+                                  task.status === 'done' ? 'text-green-500' : 'text-gray-400'
+                                }`}
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTask(task.boardId, task.id)}
+                                className="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-red-500"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          {task.description && (
+                            <p className="text-sm text-gray-400">{task.description}</p>
+                          )}
+                          {task.dueDate && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <Calendar className="w-3 h-3" />
+                              {new Date(task.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
+          </div>
+
+          {/* Regular Boards */}
           {boards.map((board) => (
-            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-900 rounded-lg snap-center md:snap-align-none border border-gray-800">
+            <div key={board.id} className="flex-shrink-0 w-80 bg-gray-900 rounded-lg snap-center border border-gray-800">
               <div className="p-3 flex justify-between items-center border-b border-gray-800">
                 <h3 className="font-semibold text-white">{board.title}</h3>
                 <div className="relative">
@@ -313,7 +439,7 @@ export function TaskBoard({ boards, onBoardUpdate, onAddBoard, onAddTask, onDele
             </div>
           ))}
           
-          <div className="flex-shrink-0 w-80 snap-center md:snap-align-none">
+          <div className="flex-shrink-0 w-80 snap-center">
             <form onSubmit={handleNewBoardSubmit} className="bg-gray-900 rounded-lg p-3 space-y-2 border border-gray-800">
               <input
                 type="text"
