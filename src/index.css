@@ -2,24 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Smooth scrolling for mobile */
-@media (max-width: 767px) {
+/* Smooth scrolling for desktop */
+@media (min-width: 768px) {
   .snap-x {
     scroll-behavior: smooth;
-    scroll-snap-type: x mandatory;
-  }
-  
-  .snap-center {
-    scroll-snap-align: center;
   }
 }
 
 /* Hide scrollbar but keep functionality */
-.overflow-x-auto {
+.overflow-x-auto,
+.overflow-y-auto {
   scrollbar-width: none;  /* Firefox */
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
 }
 
-.overflow-x-auto::-webkit-scrollbar {
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
   display: none;  /* WebKit */
 }
